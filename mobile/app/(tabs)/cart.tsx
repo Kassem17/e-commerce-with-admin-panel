@@ -1,0 +1,410 @@
+import {
+  View,
+  Text,
+  Alert,
+  ActivityIndicator,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  Modal,
+} from "react-native";
+import React, { useState } from "react";
+import SafeScreen from "@/components/SafeScreen";
+import useCart from "@/hooks/useCart";
+import { useApi } from "@/lib/api";
+import { useAddresses } from "@/hooks/useAddresses";
+import { useStripe } from "@stripe/stripe-react-native";
+import { Address } from "@/types";
+import { Ionicons } from "@expo/vector-icons";
+import OrderSummary from "@/components/OrderSummary";
+import AddressSelectionModal from "@/components/AddressSelectionModal";
+
+import * as Sentry from "@sentry/react-native";
+
+const CartScreen = () => {
+  const api = useApi();
+  const {
+    cart,
+    isLoading,
+    isError,
+    cartItemCount,
+    cartTotal,
+    addToCart,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    isAddingToCart,
+    isUpdating,
+    isRemoving,
+    isClearing,
+  } = useCart();
+  const { addresses } = useAddresses();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [addressesModalVisible, setAddressesModalVisible] = useState(false);
+  const [paymentSuccessVisible, setPaymentSuccessVisible] = useState(false);
+
+  const cartItems = cart?.items || [];
+  const subtotal = cartTotal;
+  const shipping = 10.0; // $10 shipping fee
+  const tax = subtotal * 0.08; // 8% tax
+  const total = subtotal + tax + shipping;
+
+  const handleQuantityChange = (
+    productId: string,
+    currentQuantity: number,
+    change: number
+  ) => {
+    const newQuantity = currentQuantity + change;
+    if (newQuantity < 1) return;
+    updateQuantity({ productId, quantity: newQuantity });
+  };
+
+  const handleRemoveItem = (productId: string, productName: string) => {
+    Alert.alert("Remove Item", `Remove ${productName} from cart?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: () => removeFromCart(productId),
+      },
+    ]);
+  };
+
+  const handleClear = () => {
+    Alert.alert("Clear Cart", `Are you sure you want to clear your cart?`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Remove", style: "destructive", onPress: () => clearCart() },
+    ]);
+  };
+
+  const handleCheckout = () => {
+    if (cartItems.length === 0) return;
+
+    if (!addresses || addresses.length === 0) {
+      Alert.alert(
+        "No Address",
+        "Please add a shipping address in your profile before checking out.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    setAddressesModalVisible(true);
+  };
+
+  const handleProceedWithPayment = async (selectedAddress: Address) => {
+    setAddressesModalVisible(false);
+
+    Sentry.logger.info("Checkout initiated", {
+      itemCount: cartItemCount,
+      total: total.toFixed(2),
+      city: selectedAddress.city,
+    });
+
+    try {
+      setPaymentLoading(true);
+
+      const { data } = await api.post("/payment/create-intent", {
+        cartItems,
+        shippingAddress: {
+          fullName: selectedAddress.fullName,
+          streetAddress: selectedAddress.streetAddress,
+          city: selectedAddress.city,
+          state: selectedAddress.state,
+          zipCode: selectedAddress.zipCode,
+          phoneNumber: selectedAddress.phoneNumber,
+        },
+      });
+
+      const { error: initError } = await initPaymentSheet({
+        paymentIntentClientSecret: data.clientSecret,
+        merchantDisplayName: "Your Store Name",
+      });
+
+      if (initError) {
+        Sentry.logger.error("Payment sheet init failed", {
+          errorCode: initError.code,
+          errorMessage: initError.message,
+          cartTotal: total,
+          itemCount: cartItems.length,
+        });
+        Alert.alert("Error", initError.message);
+        setPaymentLoading(false);
+        return;
+      }
+
+      const { error: presentError } = await presentPaymentSheet();
+
+      if (presentError) {
+        Sentry.logger.error("Payment cancelled", {
+          errorCode: presentError.code,
+          errorMessage: presentError.message,
+          cartTotal: total,
+          itemCount: cartItems.length,
+        });
+        Alert.alert("Payment cancelled", presentError.message);
+      } else {
+        Sentry.logger.info("Payment successful", {
+          total: total.toFixed(2),
+          itemCount: cartItems.length,
+        });
+
+        // Show custom success popup
+        setPaymentSuccessVisible(true);
+      }
+    } catch (error) {
+      Sentry.logger.error("Payment failed", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        cartTotal: total,
+        itemCount: cartItems.length,
+      });
+      Alert.alert("Error", "Failed to process payment");
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  if (isLoading) return <LoadingUI />;
+  if (isError) return <ErrorUI />;
+  if (cartItems.length === 0) return <EmptyUI />;
+
+  return (
+    <SafeScreen>
+      <Text className="text-text-primary px-6 pb-5 text-3xl font-bold tracking-tight">
+        Cart
+      </Text>
+
+      <ScrollView
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 240 }}
+      >
+        <View className="px-6 gap-2">
+          {cartItems.map((item, index) => (
+            <View
+              key={index}
+              className="bg-surface rounded-3xl overflow-hidden"
+            >
+              <View className="p-4 flex-row">
+                <View className="relative">
+                  <Image
+                    source={{ uri: item.product.images[0] }}
+                    className="size-28 rounded-2xl bg-background-lighter"
+                    resizeMode="cover"
+                  />
+                  <View className="absolute top-2 right-2 bg-primary rounded-full px-2 py-0.5">
+                    <Text className="text-background text-xs font-bold">
+                      {item.quantity}
+                    </Text>
+                  </View>
+                </View>
+                <View className="flex-1 ml-4 justify-between">
+                  <View>
+                    <Text
+                      className="text-text-primary font-bold text-lg leading-tight"
+                      numberOfLines={2}
+                    >
+                      {item.product.name}
+                    </Text>
+                    <View className="flex-row items-center mt-2">
+                      <Text className="text-primary font-bold text-2xl">
+                        ${(item.product.price * item.quantity).toFixed(2)}
+                      </Text>
+                      <Text className="text-text-secondary text-sm ml-2">
+                        ${item.product.price.toFixed(2)} each
+                      </Text>
+                    </View>
+                  </View>
+                  <View className="flex-row items-center mt-3">
+                    <TouchableOpacity
+                      className="bg-red-500 rounded-full w-9 h-9 justify-center items-center"
+                      onPress={() =>
+                        handleQuantityChange(
+                          item.product._id,
+                          item.quantity,
+                          -1
+                        )
+                      }
+                      activeOpacity={0.7}
+                      disabled={isUpdating}
+                    >
+                      {isUpdating ? (
+                        <ActivityIndicator size="small" color="#FFFFFFF" />
+                      ) : (
+                        <Ionicons name="remove" size={18} color="#121212" />
+                      )}
+                    </TouchableOpacity>
+                    <View className="mx-4 min-w-[32px] items-center">
+                      <Text className="text-text-primary font-bold text-lg">
+                        {item.quantity}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      className="bg-primary rounded-full w-9 h-9 justify-center items-center"
+                      onPress={() =>
+                        handleQuantityChange(item.product._id, item.quantity, 1)
+                      }
+                      activeOpacity={0.7}
+                      disabled={isUpdating}
+                    >
+                      {isUpdating ? (
+                        <ActivityIndicator size="small" color="#121212" />
+                      ) : (
+                        <Ionicons name="add" size={18} color="#121212" />
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      className="bg-red-500/20 rounded-full w-9 h-9 justify-center items-center ml-auto"
+                      onPress={() =>
+                        handleRemoveItem(item.product._id, item.product.name)
+                      }
+                      activeOpacity={0.7}
+                      disabled={isRemoving}
+                    >
+                      {isRemoving ? (
+                        <ActivityIndicator size="small" color="#121212" />
+                      ) : (
+                        <Ionicons
+                          name="trash-outline"
+                          size={18}
+                          color="#EF4444"
+                        />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+        <OrderSummary
+          subtotal={subtotal}
+          shipping={shipping}
+          tax={tax}
+          total={total}
+        />
+      </ScrollView>
+
+      <View className="absolute bottom-5 left-0 right-0 bg-background/95 backdrop-blur-xl border-t border-surface pt-4 pb-32 px-6">
+        <View className="flex-row items-center justify-between mb-4">
+          <View className="flex-row items-center">
+            <Ionicons name="cart" size={20} color="#1DB954" />
+            <Text className="text-text-secondary ml-2">
+              {cartItemCount} {cartItemCount === 1 ? "item" : "items"}
+            </Text>
+          </View>
+          <View className="flex-row items-center">
+            <Text className="text-text-primary font-bold text-xl">
+              ${total.toFixed(2)}
+            </Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          className="bg-primary rounded-2xl overflow-hidden"
+          onPress={handleCheckout}
+          disabled={paymentLoading}
+          activeOpacity={0.9}
+        >
+          <View className="flex-row items-center justify-center py-5">
+            {paymentLoading ? (
+              <ActivityIndicator size="small" color="#121212" />
+            ) : (
+              <>
+                <Text className="text-background font-bold text-lg mr-2">
+                  Checkout
+                </Text>
+                <Ionicons name="arrow-forward" size={20} color="#121212" />
+              </>
+            )}
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      <AddressSelectionModal
+        visible={addressesModalVisible}
+        onClose={() => setAddressesModalVisible(false)}
+        onProceed={handleProceedWithPayment}
+        isProcessing={paymentLoading}
+      />
+
+      {/* Payment Success Modal */}
+      <Modal
+        visible={paymentSuccessVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPaymentSuccessVisible(false)}
+      >
+        <View className="flex-1 justify-center items-center bg-black/50">
+          <View className="bg-white rounded-2xl p-6 w-11/12 max-w-md items-center">
+            <Ionicons name="checkmark-circle" size={64} color="#34D399" />
+            <Text className="text-xl font-bold mt-4">Payment Successful!</Text>
+            <Text className="text-text-secondary text-center mt-2">
+              Your order is being processed.
+            </Text>
+            <TouchableOpacity
+              className="mt-6 bg-primary rounded-full px-6 py-3"
+              onPress={() => {
+                setPaymentSuccessVisible(false);
+                clearCart();
+              }}
+            >
+              <Text className="text-background font-bold text-lg">OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </SafeScreen>
+  );
+};
+
+export default CartScreen;
+
+// ---------- UI Components ----------
+function LoadingUI() {
+  return (
+    <View className="flex-1 bg-background items-center justify-center">
+      <ActivityIndicator size="large" color="#00D9FF" />
+      <Text className="text-text-secondary mt-4">Loading cart...</Text>
+    </View>
+  );
+}
+
+function ErrorUI() {
+  return (
+    <View className="flex-1 bg-background items-center justify-center px-6">
+      <Ionicons name="alert-circle-outline" size={64} color="#FF6B6B" />
+      <Text className="text-text-primary font-semibold text-xl mt-4">
+        Failed to load cart
+      </Text>
+      <Text className="text-text-secondary text-center mt-2">
+        Please check your connection and try again
+      </Text>
+    </View>
+  );
+}
+
+function EmptyUI() {
+  return (
+    <View className="flex-1 bg-background">
+      <View className="px-6 pt-16 pb-5">
+        <Text className="text-text-primary text-3xl font-bold tracking-tight">
+          Cart
+        </Text>
+      </View>
+      <View className="flex-1 items-center justify-center px-6">
+        <Ionicons name="cart-outline" size={80} color="#666" />
+        <Text className="text-text-primary font-semibold text-xl mt-4">
+          Your cart is empty
+        </Text>
+        <Text className="text-text-secondary text-center mt-2">
+          Add some products to get started
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+// 14:36
