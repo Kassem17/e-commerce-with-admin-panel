@@ -1,7 +1,7 @@
 import React from "react";
 import { Navigate, Route, Routes } from "react-router";
 import LoginPage from "./pages/LoginPage";
-import { useAuth, useUser } from "@clerk/clerk-react";
+import { RedirectToSignIn, useAuth, useUser } from "@clerk/clerk-react";
 import DashboardPage from "./pages/DashboardPage";
 import ProductsPage from "./pages/ProductsPage";
 import CustomersPage from "./pages/CustomersPage";

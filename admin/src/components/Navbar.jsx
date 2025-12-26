@@ -1,11 +1,15 @@
 import React from "react";
 import { useLocation } from "react-router";
-import { PanelLeft } from "lucide-react";
+import { CloudOff, PanelLeft } from "lucide-react";
 import { UserButton } from "@clerk/clerk-react";
 import { NAVIGATION } from "../constants/Navigation";
+import ThemeSwitcher from "./ThemeSwitcher";
+import ThemeToggle from "./ThemeToggle";
 
 const Navbar = () => {
   const location = useLocation();
+
+  const theme = localStorage.getItem("theme");
 
   return (
     <div className="navbar w-full bg-base-300">
@@ -21,6 +25,9 @@ const Navbar = () => {
           {NAVIGATION.find((item) => item.path === location.pathname)?.name ||
             "Dashboard"}
         </h1>
+      </div>
+      <div className="items-center mb-1 mr-4 justify-center hidden md:flex">
+        <ThemeToggle />
       </div>
 
       <div className="mr-5">
