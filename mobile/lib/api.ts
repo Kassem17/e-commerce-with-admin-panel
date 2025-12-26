@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 // const API_URL = "http://localhost:5000/api";
 
-const API_URL = "https://e-commerce-with-admin-panel-seven.vercel.app/api";
+const API_URL = "https://e-commerce-with-admin-panel-pi.vercel.app/api";
 
 const api = axios.create({
   baseURL: API_URL,

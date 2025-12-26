@@ -38,12 +38,13 @@ const ProductDetailScreen = () => {
 
   const handleAddToCart = () => {
     if (!product) return;
+    console.log("quantity", quantity);
 
     addToCart(
       { productId: product._id, quantity },
       {
         onSuccess: () => {
-          Alert.alert("Success", `${product.name} added to cart`);
+          Alert.alert("Success", `(${quantity}) ${product.name} added to cart`);
         },
         onError: (error: any) => {
           Alert.alert(

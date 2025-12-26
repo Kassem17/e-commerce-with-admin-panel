@@ -406,5 +406,3 @@ function EmptyUI() {
     </View>
   );
 }
-
-// 14:36

@@ -23,7 +23,7 @@ const useCart = () => {
   const addToCartMutation = useMutation({
     mutationFn: async ({
       productId,
-      quantity = 1,
+      quantity,
     }: {
       productId: string;
       quantity: number;
