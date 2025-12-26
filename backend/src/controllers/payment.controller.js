@@ -6,8 +6,7 @@ import { Cart } from "../models/cart.model.js";
 import { Order } from "../models/order.model.js";
 
 const stripe = new Stripe(ENV.STRIPE_SECRET_KEY);
-
-export const createPaymentIntent = async (req, res) => {
+export async function createPaymentIntent(req, res) {
   try {
     const { cartItems, shippingAddress } = req.body;
     const user = req.user;
@@ -17,7 +16,7 @@ export const createPaymentIntent = async (req, res) => {
       return res.status(400).json({ error: "Cart is empty" });
     }
 
-    // Calculate total from server-side
+    // Calculate total from server-side (don't trust client - ever.)
     let subtotal = 0;
     const validatedItems = [];
 
@@ -36,13 +35,12 @@ export const createPaymentIntent = async (req, res) => {
       }
 
       subtotal += product.price * item.quantity;
-
-      // Trim the item for Stripe metadata (short keys, no images)
       validatedItems.push({
-        p: product._id.toString(), // product ID
-        n: product.name, // name
-        pr: product.price, // price
-        q: item.quantity, // quantity
+        product: product._id.toString(),
+        name: product.name,
+        price: product.price,
+        quantity: item.quantity,
+        image: product.images[0],
       });
     }
 
@@ -54,11 +52,13 @@ export const createPaymentIntent = async (req, res) => {
       return res.status(400).json({ error: "Invalid order total" });
     }
 
-    // Find or create Stripe customer
+    // find or create the stripe customer
     let customer;
     if (user.stripeCustomerId) {
+      // find the customer
       customer = await stripe.customers.retrieve(user.stripeCustomerId);
     } else {
+      // create the customer
       customer = await stripe.customers.create({
         email: user.email,
         name: user.name,
@@ -67,22 +67,27 @@ export const createPaymentIntent = async (req, res) => {
           userId: user._id.toString(),
         },
       });
+
+      // add the stripe customer ID to the  user object in the DB
       await User.findByIdAndUpdate(user._id, { stripeCustomerId: customer.id });
     }
 
-    // Create payment intent
+    // create payment intent
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(total * 100), // convert to cents
       currency: "usd",
       customer: customer.id,
-      automatic_payment_methods: { enabled: true },
+      automatic_payment_methods: {
+        enabled: true,
+      },
       metadata: {
         clerkId: user.clerkId,
         userId: user._id.toString(),
-        orderItems: JSON.stringify(validatedItems), // now under 500 chars
+        orderItems: JSON.stringify(validatedItems),
         shippingAddress: JSON.stringify(shippingAddress),
         totalPrice: total.toFixed(2),
       },
+      // in the webhooks section we will use this metadata
     });
 
     res.status(200).json({ clientSecret: paymentIntent.client_secret });
@@ -90,7 +95,7 @@ export const createPaymentIntent = async (req, res) => {
     console.error("Error creating payment intent:", error);
     res.status(500).json({ error: "Failed to create payment intent" });
   }
-};
+}
 
 // FROM DOCUMENTATION
 export const handleWebhook = async (req, res) => {
