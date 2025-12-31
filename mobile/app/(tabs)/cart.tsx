@@ -29,11 +29,9 @@ const CartScreen = () => {
     isError,
     cartItemCount,
     cartTotal,
-    addToCart,
     removeFromCart,
     updateQuantity,
     clearCart,
-    isAddingToCart,
     isUpdating,
     isRemoving,
     isClearing,
@@ -120,7 +118,7 @@ const CartScreen = () => {
 
       const { error: initError } = await initPaymentSheet({
         paymentIntentClientSecret: data.clientSecret,
-        merchantDisplayName: "Your Store Name",
+        merchantDisplayName: "ShopEasy",
       });
 
       if (initError) {
@@ -169,6 +167,15 @@ const CartScreen = () => {
   if (isLoading) return <LoadingUI />;
   if (isError) return <ErrorUI />;
   if (cartItems.length === 0) return <EmptyUI />;
+
+  if (isClearing) {
+    return (
+      <View className="flex-1 bg-background items-center justify-center">
+        <ActivityIndicator size="large" color="#00D9FF" />
+        <Text className="text-text-secondary mt-4">Clearing cart...</Text>
+      </View>
+    );
+  }
 
   return (
     <SafeScreen>
