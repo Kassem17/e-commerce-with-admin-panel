@@ -6,7 +6,7 @@ const useCart = () => {
   const api = useApi();
   const queryClient = useQueryClient();
 
-  // todo : complete this hook
+
 
   const {
     data: cart,

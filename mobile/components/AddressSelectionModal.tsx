@@ -51,7 +51,7 @@ const AddressSelectionModal = ({
           </View>
           {/* Addresses list */}
 
-          {/* TODO : can make it as flatList */}
+          {/* can make it as flatList */}
           <ScrollView
             className="flex-1 p-6"
             showsVerticalScrollIndicator={false}
