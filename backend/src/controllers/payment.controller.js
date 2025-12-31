@@ -6,6 +6,7 @@ import { Cart } from "../models/cart.model.js";
 import { Order } from "../models/order.model.js";
 
 const stripe = new Stripe(ENV.STRIPE_SECRET_KEY);
+
 export async function createPaymentIntent(req, res) {
   try {
     const { cartItems, shippingAddress } = req.body;
@@ -156,3 +157,6 @@ export const handleWebhook = async (req, res) => {
   }
   res.json({ received: true });
 };
+
+// since we are using to sell physical product we can use stripe
+// for selling digital products like coins in a game we should Use revenueCat or similar service since google pay and apple pay have strict guidelines

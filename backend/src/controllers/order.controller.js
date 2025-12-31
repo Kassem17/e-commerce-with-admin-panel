@@ -2,6 +2,8 @@ import { Product } from "../models/product.model.js";
 import { Order } from "../models/order.model.js";
 import { Review } from "../models/review.model.js";
 
+
+// this endpoint is not used since we are creating the order using webhooks
 export const createOrder = async (req, res) => {
   try {
     const user = req.user;
@@ -42,7 +44,7 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    // todo: if item.product fails we user item.product._id
+    // if item.product fails we user item.product._id
 
     res.status(201).json({ message: "Order created successfully", order });
   } catch (error) {

@@ -6,7 +6,7 @@ const useCart = () => {
   const api = useApi();
   const queryClient = useQueryClient();
 
-  // todo : complete this hook
+
 
   const {
     data: cart,
@@ -87,7 +87,7 @@ const useCart = () => {
     addToCart: addToCartMutation.mutate,
     removeFromCart: removeFromCartMutation.mutate,
     updateQuantity: updateCartQuantityMutation.mutate,
-    clearCart: clearCartMutation.mutateAsync,
+    clearCart: clearCartMutation.mutate,
     isAddingToCart: addToCartMutation.isPending,
     isUpdating: updateCartQuantityMutation.isPending,
     isRemoving: removeFromCartMutation.isPending,

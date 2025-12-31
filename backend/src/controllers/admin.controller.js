@@ -125,7 +125,7 @@ export const getAllOrders = async (_, res) => {
   }
 };
 
-export const updateOrderStatus = async (req, res) => {z
+export const updateOrderStatus = async (req, res) => {
   try {
     const { orderId } = req.params;
     const { status } = req.body;

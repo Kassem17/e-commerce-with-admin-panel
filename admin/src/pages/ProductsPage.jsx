@@ -33,7 +33,7 @@ const ProductsPage = () => {
     queryFn: productApi.getAll,
   });
 
-  // TODO: add a success popup or toast when adding/editing a product
+ 
 
   // we can use this or return res.data.products from the api
   // const products = data?.products ?? [];

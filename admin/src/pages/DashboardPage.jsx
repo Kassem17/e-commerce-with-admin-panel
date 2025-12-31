@@ -20,7 +20,7 @@ const DashboardPage = () => {
     queryFn: statsApi.getDashboard,
   });
 
-  // TODO: send the last 5 items from the backend instead of using slice
+
   const recentOrders = ordersData?.orders?.slice(0, 5) || [];
 
   const statsCards = [

@@ -90,7 +90,7 @@ const CustomersPage = () => {
                           </div>
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-semibold text-white text-[15px]">
+                          <span className="font-semibold text text-[15px]">
                             {customer.name}
                           </span>
 
