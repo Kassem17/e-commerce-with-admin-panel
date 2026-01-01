@@ -1,7 +1,7 @@
 import React from "react";
 import { Outlet } from "react-router";
 import NavBar from "../components/Navbar";
-import Sidebar from "../components/SideBar";
+import Sidebar from "../components/Sidebar";
 
 const DashboardLayout = () => {
   return (
